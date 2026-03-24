@@ -12,6 +12,7 @@ router.use("/auth", authRoutes);
 router.use(auth);
 router.use(audit);
 
+
 router.use("/users", userRoutes);
 router.use("/projects", projectRoutes);
 router.use("/tasks", taskRoutes);

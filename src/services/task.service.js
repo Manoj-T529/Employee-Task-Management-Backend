@@ -16,7 +16,7 @@ exports.createTask = async (data, user) => {
     description: data.description || null,
     reporter_id: user.id,
     status_id: data.status_id || 1,
-    priority_id: data.priority_id || 1,
+    priority_id: Number(data.priority_id) || 1,
     story_points: data.story_points || null,
     start_date: data.start_date ? new Date(data.start_date) : null,
     due_date: data.due_date ? new Date(data.due_date) : null
@@ -59,6 +59,38 @@ exports.updateStatus = async (taskId, statusId) => {
   return updatedTask;
 };
 
+// Add these exports to your task.service.js
+
+exports.updateTaskDetails = async (taskId, data) => {
+  const task = await taskRepo.getTaskById(taskId);
+  if (!task) throw new AppError("Task not found", 404);
+
+  // Clear board cache since task details changed
+  await delCache(`board:${task.project_id}`);
+
+  return taskRepo.updateTaskDetails(taskId, {
+    title: data.title,
+    description: data.description,
+    priority_id: Number(data.priority_id),
+    story_points: Number(data.story_points)
+  });
+};
+
+exports.addComment = async (taskId, userId, text) => {
+  const task = await taskRepo.getTaskById(taskId);
+  if (!task) throw new AppError("Task not found", 404);
+
+  return taskRepo.addComment({
+    id: uuid(),
+    task_id: taskId,
+    user_id: userId,
+    comment_text: text
+  });
+};
+
+exports.getComments = async (taskId) => {
+  return taskRepo.getComments(taskId);
+};
 // exports.updateStatus = async (taskId, statusId) => {
 //   const task = await taskRepo.getTaskById(taskId);
 //   if (!task) throw new AppError("Task not found", 404);
@@ -77,6 +109,8 @@ exports.rescheduleTask = async (taskId, startDate, dueDate) => {
     due_date: dueDate ? new Date(dueDate) : null
   });
 };
+
+
 
 exports.deleteTask = async (taskId) => {
   const task = await taskRepo.getTaskById(taskId);

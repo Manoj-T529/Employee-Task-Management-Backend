@@ -26,7 +26,14 @@ exports.register = async (data) => {
 
 exports.login = async (email, password) => {
   const user = await userRepo.getUserByEmail(email);
+
+    if (user.status !== "ACTIVE") {
+  throw new AppError("User is deactivated. Contact admin.", 403);
+}
+
   if (!user || user.deleted_at) throw new AppError("Invalid credentials", 401);
+
+
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) throw new AppError("Invalid credentials", 401);

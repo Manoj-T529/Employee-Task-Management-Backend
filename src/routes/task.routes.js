@@ -7,12 +7,17 @@ router.patch("/:taskId/status", role("ADMIN", "EMPLOYEE"), taskController.update
 router.get("/project/:projectId/board", role("ADMIN", "EMPLOYEE"), taskController.getBoard);
 router.get("/calendar", role("ADMIN", "EMPLOYEE"), taskController.calendar);
 
+router.patch("/:taskId/details", role("ADMIN", "EMPLOYEE"), taskController.updateTaskDetails);
+router.post("/:taskId/comments", role("ADMIN", "EMPLOYEE"), taskController.addComment);
+router.get("/:taskId/comments", role("ADMIN", "EMPLOYEE"), taskController.getComments);
+
 // Admin Only
 router.use(role("ADMIN"));
 router.post("/", taskController.createTask);
 router.post("/:taskId/assign", taskController.assignUsers);
 router.patch("/:taskId/schedule", taskController.rescheduleTask);
 router.delete("/:taskId", taskController.deleteTask);
+
 
 module.exports = router;
 

@@ -18,6 +18,9 @@ exports.refreshToken = catchAsync(async (req, res) => {
 });
 
 exports.logout = catchAsync(async (req, res) => {
+
+  console.log("Data at Logout ", req.user.id);
+
   await authService.logout(req.user.id);
   res.status(200).json({ status: "success", message: "Logged out successfully" });
 });

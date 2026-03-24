@@ -24,6 +24,7 @@ exports.deleteUser = async (id, email, username) => {
   return prisma.users.update({
     where: { id },
     data: {
+      status: "INACTIVE",
       deleted_at: new Date(),
       email: `${email}_deleted_${timestamp}`,
       username: `${username}_deleted_${timestamp}`

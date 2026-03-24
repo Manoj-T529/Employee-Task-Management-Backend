@@ -23,7 +23,7 @@ exports.getTasksByProject = (projectId) => prisma.tasks.findMany({
 });
 exports.updateTaskStatus = (taskId, statusId) => prisma.tasks.update({
   where: { id: taskId },
-  data: { status_id: statusId }
+  data: { status_id: Number(statusId) }
 });
 exports.updateTaskDetails = (id, data) => prisma.tasks.update({ where: { id }, data });
 
@@ -32,6 +32,19 @@ exports.deleteTask = (id) => prisma.tasks.update({ where: { id }, data: { delete
 exports.getCalendarTasks = (start, end) => prisma.tasks.findMany({
   where: { due_date: { gte: new Date(start), lte: new Date(end) } }
 });
+
+// Add these to the bottom of your task.repository.js
+
+exports.addComment = (data) => {
+  return prisma.task_comments.create({ data });
+};
+
+exports.getComments = (taskId) => {
+  return prisma.task_comments.findMany({
+    where: { task_id: taskId },
+    orderBy: { created_at: "asc" } // Oldest top, newest bottom
+  });
+};
 
 // const prisma = require("../config/prisma")
 

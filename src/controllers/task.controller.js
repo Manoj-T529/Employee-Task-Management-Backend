@@ -10,6 +10,9 @@ exports.assignUsers = catchAsync(async (req, res) => {
   res.status(200).json({ status: "success", data: result });
 });
 exports.updateStatus = catchAsync(async (req, res) => {
+
+  console.log("Data at Update Tasks ",req.params.taskId, req.body.status_id);
+  
   const task = await taskService.updateStatus(req.params.taskId, req.body.status_id);
   res.status(200).json({ status: "success", data: task });
 });
@@ -28,6 +31,26 @@ exports.getBoard = catchAsync(async (req, res) => {
 exports.calendar = catchAsync(async (req, res) => {
   const tasks = await taskService.getCalendar(req.query.start, req.query.end);
   res.status(200).json({ status: "success", data: tasks });
+});
+
+
+// task.controller.js
+exports.updateTaskDetails = catchAsync(async (req, res) => {
+  const task = await taskService.updateTaskDetails(req.params.taskId, req.body);
+  res.status(200).json({ status: "success", data: task });
+});
+
+exports.addComment = catchAsync(async (req, res) => {
+  const comment = await taskService.addComment(req.params.taskId, req.user.id, req.body.text);
+  res.status(201).json({ status: "success", data: comment });
+});
+
+exports.getComments = catchAsync(async (req, res) => {
+
+  console.log("Data at getcomments ", req.params.taskId);
+
+  const comments = await taskService.getComments(req.params.taskId);
+  res.status(200).json({ status: "success", data: comments });
 });
 
 // const taskService = require("../services/task.service")

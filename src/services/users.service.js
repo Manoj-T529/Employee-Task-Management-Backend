@@ -2,6 +2,8 @@ const userRepo = require("../repositories/user.repository");
 const bcrypt = require("bcrypt");
 const { v4: uuid } = require("uuid");
 const AppError = require("../utils/AppError");
+const { getPagination, formatPaginatedResponse } = require("../utils/pagination");
+const { setCache, getCache, delCache } = require("../config/redis");
 
 exports.createUser = async (data) => {
   const hash = await bcrypt.hash(data.password, 10);
@@ -33,6 +35,8 @@ exports.updateUser = async (id, data) => {
 };
 
 exports.deleteUser = async (id) => {
+
+  
   const user = await userRepo.getUserById(id);
   if (!user) throw new AppError("User not found", 404);
   

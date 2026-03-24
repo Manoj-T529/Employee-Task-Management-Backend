@@ -2,12 +2,14 @@ const router = require("express").Router();
 const projectController = require("../controllers/project.controller");
 const role = require("../middleware/role.middleware");
 
+router.get("/", role("ADMIN", "EMPLOYEE"), projectController.getAllProjects);
+
 // ONLY ADMIN
 router.use(role("ADMIN"));
 router.post("/", projectController.createProject);
-router.get("/", projectController.getAllProjects);
 router.put("/:id", projectController.updateProject);
 router.delete("/:id", projectController.deleteProject);
+
 
 module.exports = router;
 

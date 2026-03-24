@@ -17,7 +17,7 @@ exports.findAllPaginated = async (skip, take) => {
 
 exports.updateProject = (id, data) => prisma.projects.update({ where: { id }, data });
 // SOFT DELETE
-exports.deleteProject = (id) => prisma.projects.update({ where: { id }, data: { deleted_at: new Date() } });
+exports.deleteProject = (id) => prisma.projects.update({ where: { id }, data: { status: "INACTIVE",deleted_at: new Date() } });
 
 // const prisma = require("../config/prisma")
 
