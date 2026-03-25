@@ -9,10 +9,17 @@ const AppError = require("./utils/AppError");
 
 const app = express();
 
+
+
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json({ limit: "10kb" })); 
-app.use(cors());
+
+app.use(cors({
+  origin: "https://astounding-belekoy-ffcfe.netlify.app"
+}));
+
+//app.use(cors());
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
