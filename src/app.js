@@ -24,15 +24,25 @@ app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json({ limit: "10kb" })); 
 
+
+app.use(cors({
+  origin: [
+    'https://taskforge.space',
+    'https://www.taskforge.space',
+    'https://astounding-belekoy-ffcfe.netlify.app'
+  ],
+  credentials: true
+}));
+
 // app.use(cors({
 //   origin: "https://astounding-belekoy-ffcfe.netlify.app"
 // }));
 
-app.use(cors({
-  origin: "http://localhost:4200", // your frontend
-  methods: ["GET", "POST", "PUT","PATCH", "DELETE"],
-  credentials: true
-}));
+// app.use(cors({
+//   origin: "http://localhost:4200", // your frontend
+//   methods: ["GET", "POST", "PUT","PATCH", "DELETE"],
+//   credentials: true
+// }));
 
 //app.use(cors());
 
