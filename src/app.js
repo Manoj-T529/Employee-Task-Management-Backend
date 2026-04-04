@@ -20,9 +20,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(helmet());
-app.use(morgan("dev"));
-app.use(express.json({ limit: "10kb" })); 
 
 
 app.use(cors({
@@ -31,9 +28,16 @@ app.use(cors({
     'https://www.taskforge.space',
     'https://astounding-belekoy-ffcfe.netlify.app'
   ],
-  methods: ['GET', 'POST', 'PUT','PATCH', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT','PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
+app.options('*', cors());
+
+app.use(helmet());
+app.use(morgan("dev"));
+app.use(express.json({ limit: "10kb" })); 
+
+
 
 // app.use(cors({
 //   origin: "https://astounding-belekoy-ffcfe.netlify.app"
