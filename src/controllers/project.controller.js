@@ -1,18 +1,20 @@
 const projectService = require("../services/project.service");
 const catchAsync = require("../utils/catchAsync");
 const { getPagination, formatPaginatedResponse } = require("../utils/pagination");
+const logger = require("../utils/logger");
 
 exports.createProject = catchAsync(async (req, res) => {
   const project = await projectService.createProject(req.body, req.user);
   res.status(201).json({ status: "success", data: project });
 });
 exports.getAllProjects = catchAsync(async (req, res) => {
-  const { skip, take, page, limit } = getPagination(req.query.page, req.query.limit);
-  const { data, total } = await projectService.getAllProjects(skip, take);
+  const { limit, cursor } = req.query;
+  const { data, total, nextCursor } = await projectService.getAllProjects(limit, cursor);
   
   res.status(200).json({ 
     status: "success", 
-    ...formatPaginatedResponse(data, total, page, limit)
+    data, 
+    meta: { total, nextCursor } 
   });
 });
 exports.updateProject = catchAsync(async (req, res) => {
@@ -25,23 +27,3 @@ exports.deleteProject = catchAsync(async (req, res) => {
 });
 
 
-// const projectService = require("../services/project.service");
-
-// exports.createProject = async (req, res, next) => {
-//   try {
-//     const project = await projectService.createProject(req.body, req.user);
-//     res.status(201).json(project);
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
-
-// exports.getBoard = async (req, res, next) => {
-//   try {
-//     const board = await taskService.getBoard(req.params.projectId);
-//     res.json(board);
-//   } catch (err) {
-//     next(err);
-//   }
-// };

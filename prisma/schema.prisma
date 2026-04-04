@@ -6,6 +6,9 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+				 
+																	   
+									 
 
 model users {
   id            String    @id @db.Char(36)
@@ -22,6 +25,7 @@ model users {
 
   reported_tasks tasks[]          @relation("UserReportedTasks")
   assigned_tasks task_assignees[]
+  time_logs      time_logs[]      // Added for Time Tracking
 }
 
 model projects {
@@ -39,28 +43,37 @@ model projects {
 }
 
 model tasks {
-  id           String    @id @db.Char(36)
-  project_id   String
-  title        String
-  description  String?
-  status_id    Int
-  priority_id  Int
-  reporter_id  String
-  start_date   DateTime?
-  due_date     DateTime?
-  story_points Int?
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  deleted_at   DateTime?
+  id              String    @id @db.Char(36)
+  project_id      String
+  title           String
+  description     String?
+  status_id       Int
+  priority_id     Int
+  reporter_id     String
+  start_date      DateTime?
+  due_date        DateTime?
+  story_points    Int?
+  
+  // Time Tracking Fields
+  estimated_hours Float?
+  logged_hours    Float     @default(0) 
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
 
   project        projects         @relation(fields: [project_id], references: [id], onDelete: Cascade)
   reporter       users            @relation("UserReportedTasks", fields: [reporter_id], references: [id])
   task_assignees task_assignees[]
   task_comments  task_comments[]
+  time_logs      time_logs[]      // Added for Time Tracking
 
-  @@index([project_id, status_id]) // Super fast Kanban board loading
-  @@index([due_date]) // Super fast Calendar queries
-  @@index([reporter_id]) // Fast "My Tasks" queries
+  status         lookups          @relation("TaskStatus", fields: [status_id], references: [id])
+  priority       lookups          @relation("TaskPriority", fields: [priority_id], references: [id])
+
+  @@index([project_id, status_id]) 
+  @@index([due_date]) 
+  @@index([reporter_id]) 
   @@index([deleted_at])
 }
 
@@ -88,12 +101,32 @@ model task_comments {
   task tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
 }
 
+// Added new model for Time Tracking
+model time_logs {
+  id          String   @id @db.Char(36)
+  task_id     String
+  user_id     String
+  hours       Float
+  description String?
+  logged_date DateTime @default(now())
+  created_at  DateTime @default(now())
+
+  task tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([task_id])
+  @@index([user_id])
+}
+
 model lookups {
   id            Int     @id @default(autoincrement())
   type          String
   code          String
   value         String?
   display_order Int?
+
+  tasks_status   tasks[] @relation("TaskStatus")
+  tasks_priority tasks[] @relation("TaskPriority")
 }
 
 model audit_logs {
@@ -107,4 +140,15 @@ model audit_logs {
   performed_at DateTime @default(now())
 
   @@index([entity_type, entity_id])
+}
+
+
+model outbox_events {
+  id         String   @id @db.Char(36)
+  topic      String
+  payload    Json
+  status     String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  created_at DateTime @default(now())
+
+  @@index([status])
 }

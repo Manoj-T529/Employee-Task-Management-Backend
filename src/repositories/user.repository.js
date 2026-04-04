@@ -9,10 +9,17 @@ exports.findAll = () => prisma.users.findMany({ select: { id: true, email: true,
 exports.findByRole = (role) => prisma.users.findMany({ where: { role }, select: { id: true, email: true, username: true, first_name: true, last_name: true, role: true, status: true } });
 exports.updateUser = (id, data) => prisma.users.update({ where: { id }, data, select: { id: true, email: true, username: true, role: true, status: true } });
 
-exports.findAllPaginated = async (skip, take, role) => {
+exports.findAllPaginated = async (limit, cursor, role) => {
   const where = { deleted_at: null, ...(role && { role }) };
+  const queryArgs = { take: limit, where, select: { id: true, email: true, username: true, role: true } };
+
+  if (cursor) {
+    queryArgs.cursor = { id: cursor };
+    queryArgs.skip = 1;
+  }
+
   const [data, total] = await Promise.all([
-    prisma.users.findMany({ where, skip, take, select: { id: true, email: true, username: true, role: true } }),
+    prisma.users.findMany(queryArgs),
     prisma.users.count({ where })
   ]);
   return { data, total };
@@ -31,20 +38,14 @@ exports.deleteUser = async (id, email, username) => {
     }
   });
 };
-// const prisma = require("../config/prisma")
 
-// exports.createUser = (data)=>{
-//  return prisma.users.create({data})
-// }
+exports.getUsersByUsernames = (usernames) => {
+  return prisma.users.findMany({
+    where: { 
+      username: { in: usernames }, 
+      deleted_at: null 
+    },
+    select: { id: true, email: true, first_name: true, username: true }
+  });
+};
 
-// exports.getUserByEmail = (email)=>{
-//  return prisma.users.findUnique({
-//   where:{email}
-//  })
-// }
-
-// exports.getUserById = (id)=>{
-//  return prisma.users.findUnique({
-//   where:{id}
-//  })
-// }

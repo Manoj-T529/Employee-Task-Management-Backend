@@ -2,7 +2,7 @@ const { Server } = require("socket.io");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const redis = require("redis");
 const { REDIS_URL } = require("./env");
-const logger = require("./logger");
+const logger = require("../utils/logger");
 
 let io;
 

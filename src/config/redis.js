@@ -1,5 +1,5 @@
 const redis = require("redis");
-const logger = require("./logger");
+const logger = require("../utils/logger");
 const { USE_REDIS, REDIS_URL } = require("./env");
 
 let client = null;
@@ -11,7 +11,7 @@ if (USE_REDIS) {
   client.connect().catch(console.error);
 }
 
-exports.getCache = async (key) => {
+getCache = async (key) => {
   if (!client || !client.isReady) return null;
   try {
     const data = await client.get(key);
@@ -22,7 +22,7 @@ exports.getCache = async (key) => {
   }
 };
 
-exports.setCache = async (key, value, expiry = 30) => {
+setCache = async (key, value, expiry = 30) => {
   if (!client || !client.isReady) return;
   try {
     await client.set(key, JSON.stringify(value), { EX: expiry });
@@ -31,7 +31,7 @@ exports.setCache = async (key, value, expiry = 30) => {
   }
 };
 
-exports.delCache = async (key) => {
+delCache = async (key) => {
   if (!client || !client.isReady) return;
   try {
     await client.del(key);
@@ -40,6 +40,13 @@ exports.delCache = async (key) => {
   }
 };
 
+// At the bottom of config/redis.js
+module.exports = {
+  getCache,
+  setCache,
+  delCache,
+  redisClient: client 
+};
 
 
 // const redis = require("redis");

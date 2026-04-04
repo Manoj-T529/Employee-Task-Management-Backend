@@ -45,9 +45,12 @@ exports.deleteUser = async (id) => {
   return userRepo.deleteUser(id, user.email, user.username);
 };
 
-exports.getUsers = async (page, limit) => {
-  const { skip, take } = getPagination(page, limit);
-  return userRepo.findAllPaginated(skip, take);
+exports.getUsers = async (limit = 10, cursor = null) => {
+  limit = Number(limit) || 10;
+  if (limit > 100) limit = 100;
+  const { data, total } = await userRepo.findAllPaginated(limit, cursor);
+  const nextCursor = data.length > 0 ? data[data.length - 1].id : null;
+  return { data, total, nextCursor };
 };
 
 // const repo = require("../repositories/users.repository");

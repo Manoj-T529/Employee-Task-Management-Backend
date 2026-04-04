@@ -1,10 +1,10 @@
 const app = require("./src/app");
 const http = require("http");
 const { PORT } = require("./src/config/env");
-const logger = require("./src/config/logger");
+const logger = require("./src/utils/logger");
 const prisma = require("./src/config/prisma");
 const { initSocket } = require("./src/config/socket"); 
-
+const startOutboxWorker = require('./src/workers/outbox.workers');
 require("./src/workers/notification.worker");
 
 const server = http.createServer(app);
@@ -15,6 +15,7 @@ initSocket(server).then(() => {
 });
 
 server.listen(PORT, () => {
+  startOutboxWorker();
   logger.info(`🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
 
@@ -43,13 +44,3 @@ process.on("unhandledRejection", (err) => {
   logger.error(err.name, err.message);
   server.close(() => process.exit(1));
 });
-
-// require("dotenv").config();
-// require("./src/workers/notification.worker");
-// const app = require("./src/app");
-
-// const PORT = process.env.PORT || 5000;
-
-// app.listen(PORT, () => {
-//   console.log(`Server running on port ${PORT}`);
-// });

@@ -1,6 +1,6 @@
 const prisma = require("../config/prisma");
 const { v4: uuid } = require("uuid");
-const logger = require("../config/logger");
+const logger = require("../utils/logger");
 
 module.exports = (req, res, next) => {
   res.on("finish", async () => {

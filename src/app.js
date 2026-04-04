@@ -6,17 +6,32 @@ const morgan = require("morgan");
 const routes = require("./routes");
 const globalErrorHandler = require("./middleware/error.middleware");
 const AppError = require("./utils/AppError");
+const httpContext = require('express-http-context');
+const { v4: uuid } = require("uuid");
 
 const app = express();
 
 
+app.use(httpContext.middleware);
+app.use((req, res, next) => {
+  const reqId = req.headers['x-request-id'] || uuid();
+  httpContext.set('reqId', reqId);
+  res.setHeader('x-request-id', reqId); // Send back to client
+  next();
+});
 
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json({ limit: "10kb" })); 
 
+// app.use(cors({
+//   origin: "https://astounding-belekoy-ffcfe.netlify.app"
+// }));
+
 app.use(cors({
-  origin: "https://astounding-belekoy-ffcfe.netlify.app"
+  origin: "http://localhost:4200", // your frontend
+  methods: ["GET", "POST", "PUT","PATCH", "DELETE"],
+  credentials: true
 }));
 
 //app.use(cors());

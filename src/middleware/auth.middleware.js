@@ -1,45 +1,38 @@
-const jwt = require("jsonwebtoken");
+const { verifyToken } = require("../utils/jwt");
+const { getCache } = require("../config/redis");
 const AppError = require("../utils/AppError");
-const { JWT_SECRET } = require("../config/env");
+const catchAsync = require("../utils/catchAsync");
+const logger = require("../utils/logger");
 
-module.exports = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return next(new AppError("Unauthorized - No Token Provided", 401));
+exports.protect = catchAsync(async (req, res, next) => {
+  let token;
+  
+  // 1. Extract Token
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
-  const token = authHeader.split(" ")[1];
+  if (!token) {
+    throw new AppError("Not authorized, no token provided", 401);
+  }
+
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    // 2. Verify token signature and expiry
+    const decoded = verifyToken(token);
+
+    // 3. FAANG Standard: Check Redis Blacklist for immediate revocation
+    const isBlacklisted = await getCache(`blacklist:${decoded.id}`);
+    if (isBlacklisted) {
+      logger.warn("Attempt to use blacklisted token", { userId: decoded.id });
+      throw new AppError("Session expired or revoked. Please log in again.", 401);
+    }
+
+    // 4. Attach user payload to request
+    req.user = decoded;
     next();
+    
   } catch (err) {
-    return next(new AppError("Unauthorized - Invalid Token", 401));
+    throw new AppError(err.message || "Invalid or expired token", 401);
   }
-};
+});
 
-
-
-
-// const jwt = require("jsonwebtoken");
-
-// module.exports = (req, res, next) => {
-
-//     if (req.path.startsWith("/api/auth")) {
-//     return next(); 
-//   }
-
-//   const token = req.headers.authorization?.split(" ")[1];
-
-//   console.log("Token at auth middleware "+token);
-
-//   if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-//   try {
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-//     req.user = decoded;
-
-//     next();
-//   } catch (err) {
-//     return res.status(401).json({ message: "Invalid token" });
-//   }
-// };

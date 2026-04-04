@@ -5,6 +5,11 @@ const { v4: uuid } = require("uuid");
 const eventBus = require("../events/eventBus");
 const notificationQueue = require("../queues/notification.queue"); // Import Queue
 const { broadcastBoardUpdate } = require("../config/socket");
+const auditRepo = require("../repositories/audit.repository");
+const lookupService = require("./lookup.service");
+const logger = require("../utils/logger");
+const userRepo = require("../repositories/user.repository");
+
 
 exports.createTask = async (data, user) => {
   await delCache(`board:${data.project_id}`);
@@ -15,24 +20,44 @@ exports.createTask = async (data, user) => {
     title: data.title,
     description: data.description || null,
     reporter_id: user.id,
-    status_id: data.status_id || 1,
-    priority_id: Number(data.priority_id) || 1,
-    story_points: data.story_points || null,
+    status_id: data.status_id ? Number(data.status_id) : 1, 
+    priority_id: data.priority_id ? Number(data.priority_id) : 1, // Medium default
+    story_points: data.story_points ? Number(data.story_points) : null,
     start_date: data.start_date ? new Date(data.start_date) : null,
     due_date: data.due_date ? new Date(data.due_date) : null
   };
 
-  const task = await taskRepo.createTaskWithAssignees(taskData, data.assignees, user.id);
+  // 👇 FIX: Safely extract assignees no matter which name the frontend used
+  const selectedAssignees = data.assignees || data.task_assignees || [];
+
+  // Pass the safe array to the repository
+  const task = await taskRepo.createTaskWithAssignees(taskData, selectedAssignees, user.id);
 
   // Trigger Queue if assignees exist
-  if (data.assignees && data.assignees.length > 0) {
+  if (selectedAssignees.length > 0) {
     await notificationQueue.add("taskNotification", {
       eventType: "TASK_ASSIGNED",
-      data: { taskId: task.id, users: data.assignees }
+      data: { taskId: task.id, users: selectedAssignees }
     });
   }
 
+  await taskRepo.logTaskActivity(task.id, "TASK_CREATED", null, { title: task.title }, user.id);
+
   return task;
+};
+
+
+exports.updateStatus = async (taskId, statusId,userId) => {
+  const task = await taskRepo.getTaskById(taskId);
+  if (!task) throw new AppError("Task not found", 404);
+
+  await delCache(`board:${task.project_id}`);
+  const updatedTask = await taskRepo.updateTaskStatus(taskId, statusId);
+
+  await auditRepo.logActivity("TASK", taskId, "STATUS_UPDATED", { status: task.status_id }, { status: statusId }, userId); // REAL-TIME BROADCAST: Tell all users in this project that a task moved!
+  broadcastBoardUpdate(task.project_id, "TASK_MOVED", updatedTask);
+
+  return updatedTask;
 };
 
 exports.assignUsers = async (taskId, users, userId) => {
@@ -40,64 +65,125 @@ exports.assignUsers = async (taskId, users, userId) => {
   if (!task) throw new AppError("Task not found", 404);
   
   await delCache(`board:${task.project_id}`);
-  const records = users.map(u => ({ id: uuid(), task_id: taskId, user_id: u, assigned_by: userId }));
   
-  const result = await taskRepo.assignUsers(records);
+  const records = (users || []).map(u => ({ 
+    id: uuid(), task_id: taskId, user_id: u, assigned_by: userId 
+  }));
+  
+  // Use the safe transaction wrapper to prevent Race Conditions & Dual-Write issues
+  await taskRepo.assignUsersTransaction(taskId, records, users);
+  
   eventBus.emit("taskAssigned", { taskId, users });
-  return result;
+  return { message: "Assignees updated successfully" };
 };
-exports.updateStatus = async (taskId, statusId) => {
+
+// exports.assignUsers = async (taskId, users, userId) => {
+//   const task = await taskRepo.getTaskById(taskId);
+//   if (!task) throw new AppError("Task not found", 404);
+  
+//   await delCache(`board:${task.project_id}`);
+  
+//   // 1. DELETE existing assignees to avoid duplicates/ghost users
+//   await taskRepo.clearTaskAssignees(taskId);
+  
+//   // 2. INSERT the newly selected assignees (if any)
+//   let result = null;
+//   if (users && users.length > 0) {
+//     const records = users.map(u => ({ 
+//       id: uuid(), 
+//       task_id: taskId, 
+//       user_id: u, 
+//       assigned_by: userId 
+//     }));
+    
+//     result = await taskRepo.assignUsers(records);
+//     eventBus.emit("taskAssigned", { taskId, users });
+//   }
+  
+//   return result || { message: "All assignees removed" };
+// };
+
+// exports.assignUsers = async (taskId, users, userId) => {
+//   const task = await taskRepo.getTaskById(taskId);
+//   if (!task) throw new AppError("Task not found", 404);
+  
+//   await delCache(`board:${task.project_id}`);
+  
+//   const records = (users || []).map(u => ({ 
+//     id: uuid(), task_id: taskId, user_id: u, assigned_by: userId 
+//   }));
+  
+//   // Use the safe transaction wrapper to prevent Race Conditions (#4)
+//   await taskRepo.assignUsersTransaction(taskId, records, users);
+  
+//   eventBus.emit("taskAssigned", { taskId, users });
+//   return { message: "Assignees updated successfully" };
+// };
+
+
+exports.updateTaskDetails = async (taskId, data,userId) => {
   const task = await taskRepo.getTaskById(taskId);
   if (!task) throw new AppError("Task not found", 404);
 
-  await delCache(`board:${task.project_id}`);
-  const updatedTask = await taskRepo.updateTaskStatus(taskId, statusId);
-
-  // REAL-TIME BROADCAST: Tell all users in this project that a task moved!
-  broadcastBoardUpdate(task.project_id, "TASK_MOVED", updatedTask);
-
-  return updatedTask;
-};
-
-// Add these exports to your task.service.js
-
-exports.updateTaskDetails = async (taskId, data) => {
-  const task = await taskRepo.getTaskById(taskId);
-  if (!task) throw new AppError("Task not found", 404);
-
+  
   // Clear board cache since task details changed
   await delCache(`board:${task.project_id}`);
 
-  return taskRepo.updateTaskDetails(taskId, {
+  const updatedTask = taskRepo.updateTaskDetails(taskId, {
     title: data.title,
     description: data.description,
     priority_id: Number(data.priority_id),
     story_points: Number(data.story_points)
   });
+  await taskRepo.logTaskActivity(taskId, "DETAILS_UPDATED", null, null, userId);
+  return updatedTask;
 };
+
 
 exports.addComment = async (taskId, userId, text) => {
   const task = await taskRepo.getTaskById(taskId);
   if (!task) throw new AppError("Task not found", 404);
 
-  return taskRepo.addComment({
-    id: uuid(),
+  // 1. Save the comment to the database
+  const commentId = uuid();
+  const comment = await taskRepo.addComment({
+    id: commentId,
     task_id: taskId,
     user_id: userId,
     comment_text: text
   });
+
+  // 2. Extract @mentions using Regex (e.g., matches "@john_doe")
+  const mentionRegex = /@(\w+)/g;
+  const mentions = [...text.matchAll(mentionRegex)].map(m => m[1]);
+
+  if (mentions.length > 0) {
+    // 3. Remove duplicates & query database for mentioned users
+    const uniqueUsernames = [...new Set(mentions)];
+    const mentionedUsers = await userRepo.getUsersByUsernames(uniqueUsernames);
+
+    if (mentionedUsers.length > 0) {
+      // 4. Send background job to notify users
+      const userIdsToNotify = mentionedUsers.map(u => u.id);
+      
+      await notificationQueue.add("taskNotification", {
+        eventType: "COMMENT_MENTION",
+        data: { 
+          taskId, 
+          commentText: text, 
+          users: userIdsToNotify // Required to match your worker's logic
+        }
+      });
+    }
+  }
+
+  return comment;
 };
 
 exports.getComments = async (taskId) => {
   return taskRepo.getComments(taskId);
 };
-// exports.updateStatus = async (taskId, statusId) => {
-//   const task = await taskRepo.getTaskById(taskId);
-//   if (!task) throw new AppError("Task not found", 404);
 
-//   await delCache(`board:${task.project_id}`);
-//   return taskRepo.updateTaskStatus(taskId, statusId);
-// };
 
 exports.rescheduleTask = async (taskId, startDate, dueDate) => {
   const task = await taskRepo.getTaskById(taskId);
@@ -120,27 +206,105 @@ exports.deleteTask = async (taskId) => {
   return taskRepo.deleteTask(taskId);
 };
 
+
+
 exports.getBoard = async (projectId) => {
   const cacheKey = `board:${projectId}`;
+  logger.info("Get Board Service", { cacheKey });
   const cached = await getCache(cacheKey);
-  if (cached) return cached;
 
-  const tasks = await taskRepo.getTasksByProject(projectId);
-  const board = {
-    TODO: tasks.filter(t => t.status_id === 1),
-    IN_PROGRESS: tasks.filter(t => t.status_id === 2),
-    DONE: tasks.filter(t => t.status_id === 3)
+  // Helper to fetch and cache fresh data
+  const fetchAndCacheBoard = async () => {
+    const tasks = await taskRepo.getTasksByProject(projectId);
+    const statusLookups = await lookupService.getLookupsByType("TASK_STATUS");
+
+    const board = {};
+    statusLookups.forEach(status => { board[status.code] = []; });
+    tasks.forEach(t => {
+      const statusCode = t.status?.code || "UNKNOWN";
+      if (!board[statusCode]) board[statusCode] = [];
+      board[statusCode].push(t);
+    });
+
+    // Store data + a "staleAt" timestamp (e.g., 30 seconds from now)
+    const cacheData = { 
+      data: board, 
+      staleAt: Date.now() + 30 * 1000 
+    };
+    
+    // Cache TTL is much longer (e.g., 1 hour) to ensure we always have stale data to serve
+    await setCache(cacheKey, cacheData, 3600); 
+    return board;
   };
 
-  await setCache(cacheKey, board, 30);
-  return board;
-};
+  // If completely missing, we must fetch synchronously
+  if (!cached) {
+    return fetchAndCacheBoard();
+  }
 
+  // STALE-WHILE-REVALIDATE LOGIC
+  // If the cache is stale, trigger a background refresh but DON'T wait for it
+  if (Date.now() > cached.staleAt) {
+    logger.info("Cache stale, triggering async refresh", { projectId });
+    fetchAndCacheBoard().catch(err => logger.error("Background cache refresh failed", err));
+  }
+
+  // Return the data instantly (either fresh or slightly stale)
+  return cached.data;
+};
 exports.getCalendar = async (start, end) => {
   if (!start || !end) throw new AppError("Start and End dates required", 400);
   return taskRepo.getCalendarTasks(start, end);
 };
 
+exports.getTaskActivity = async (taskId) => {
+  return taskRepo.getTaskActivity(taskId);
+};
+
+exports.getTaskById = async (taskId) => {
+  if (!taskId) {
+    throw new Error("Task ID is required");
+  }
+
+  const task = await taskRepo.getTaskById(taskId);
+
+  if (!task) {
+    throw new Error("Task not found");
+  }
+
+  return task;
+};
+
+exports.logTime = async (taskId, userId, data) => {
+  const task = await taskRepo.getTaskById(taskId);
+  if (!task) throw new AppError("Task not found", 404);
+
+  const timeLogData = {
+    id: uuid(),
+    task_id: taskId,
+    user_id: userId,
+    hours: Number(data.hours),
+    description: data.description || null,
+    logged_date: data.logged_date ? new Date(data.logged_date) : new Date()
+  };
+
+  const result = await taskRepo.logTaskTimeTransaction(timeLogData);
+  
+  // Log the activity
+  await taskRepo.logTaskActivity(
+    taskId, 
+    "TIME_LOGGED", 
+    { total: task.logged_hours }, 
+    { total: result.updatedTask.logged_hours, added: data.hours }, 
+    userId
+  );
+
+  return result.timeLog;
+};
+
+exports.getTimeLogs = async (taskId) => {
+  return taskRepo.getTaskTimeLogs(taskId);
+};
 
 // const redis = require("../config/redis")
 // const taskRepo = require("../repositories/task.repository")

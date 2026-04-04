@@ -6,8 +6,9 @@ exports.create = catchAsync(async (req, res) => {
   res.status(201).json({ status: "success", data: user });
 });
 exports.getAll = catchAsync(async (req, res) => {
-  const users = await service.getUsers();
-  res.status(200).json({ status: "success", data: users });
+  const { limit, cursor } = req.query;
+  const { data, total, nextCursor } = await service.getUsers(limit, cursor);
+  res.status(200).json({ status: "success", data, meta: { total, nextCursor } });
 });
 exports.getEmployees = catchAsync(async (req, res) => {
   const users = await service.getEmployees();

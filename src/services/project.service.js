@@ -17,19 +17,14 @@ exports.createProject = async (data, user) => {
 
 //exports.getAllProjects = async () => projectRepo.findAll();
 
-exports.getAllProjects = async (page = 1, limit = 10) => {
-
-  page = Number(page) || 1;
+exports.getAllProjects = async (limit = 10, cursor = null) => {
   limit = Number(limit) || 10;
+  if (limit > 100) limit = 100; // Hard cap limit to prevent DOS attacks
 
-  if (page < 1) page = 1;
-  if (limit < 1) limit = 10;
-
-  const skip = (page - 1) * limit;
-  const take = limit;
-
-  return await projectRepo.findAllPaginated(skip, take);
-
+  const { data, total } = await projectRepo.findAllPaginated(limit, cursor);
+  
+  const nextCursor = data.length > 0 ? data[data.length - 1].id : null;
+  return { data, total, nextCursor };
 };
 
 exports.updateProject = async (id, data) => {
@@ -50,56 +45,3 @@ exports.deleteProject = async (id) => {
 
 
 
-// const prisma = require("../config/prisma");
-// const { v4: uuid } = require("uuid");
-// const projectRepo = require("../repositories/project.repository")
-
-// exports.createProject = async (data, user) => {
-//    return projectRepo.createProject({
-//    id: uuid(),
-
-//     name: data.name,
-
-//     description: data.description,
-
-//     start_date: new Date(data.start_date),
-
-//     end_date: new Date(data.end_date),
-
-//     status: data.status || "ACTIVE",
-
-//     created_by: user.id
-//  })
-// };
-
-
-// exports.getBoard = async (projectId) => {
-
-//   const tasks = await prisma.tasks.findMany({
-//     where: { project_id: projectId },
-//     include: {
-//       project: true
-//     }
-//   });
-
-//   const board = {
-//     TODO: [],
-//     IN_PROGRESS: [],
-//     DONE: []
-//   };
-
-//   tasks.forEach(task => {
-
-//     if (task.status_id === 1)
-//       board.TODO.push(task);
-
-//     if (task.status_id === 2)
-//       board.IN_PROGRESS.push(task);
-
-//     if (task.status_id === 3)
-//       board.DONE.push(task);
-
-//   });
-
-//   return board;
-// };
