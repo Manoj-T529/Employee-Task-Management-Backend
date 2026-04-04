@@ -26,12 +26,14 @@ app.use(cors({
   origin: [
     'https://taskforge.space',
     'https://www.taskforge.space',
-    'https://astounding-belekoy-ffcfe.netlify.app'
+    'https://astounding-belekoy-ffcfef.netlify.app', // <-- Fixed the missing 'f' here!
+    'http://localhost:4200' // Keep localhost so your local development doesn't break
   ],
-  methods: ['GET', 'POST', 'PUT','PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'], // Required for your tokens and custom ID
   credentials: true
 }));
-app.options('*', cors());
+
 
 app.use(helmet());
 app.use(morgan("dev"));
