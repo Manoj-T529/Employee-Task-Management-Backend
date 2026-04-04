@@ -31,6 +31,7 @@ app.use(cors({
     'https://www.taskforge.space',
     'https://astounding-belekoy-ffcfe.netlify.app'
   ],
+  methods: ['GET', 'POST', 'PUT','PATCH', 'DELETE'],
   credentials: true
 }));
 
