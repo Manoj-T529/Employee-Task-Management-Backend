@@ -23,14 +23,15 @@ app.use((req, res, next) => {
 
 
 app.use(cors({
-  origin: [
+ origin: [
     'https://taskforge.space',
     'https://www.taskforge.space',
-    'https://astounding-belekoy-ffcfef.netlify.app', // <-- Fixed the missing 'f' here!
-    'http://localhost:4200' // Keep localhost so your local development doesn't break
+    'https://astounding-belekoy-ffcfef.netlify.app', 
+    'http://localhost:4200' 
   ],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'], // Required for your tokens and custom ID
+  // Added some standard headers browsers often send during preflight just to be safe
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'Accept', 'Origin', 'X-Requested-With'], 
   credentials: true
 }));
 
