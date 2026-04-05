@@ -22,18 +22,22 @@ app.use((req, res, next) => {
 
 
 
-app.use(cors({
- origin: [
+// 1. Define options in a variable
+const corsOptions = {
+  origin: [
     'https://taskforge.space',
     'https://www.taskforge.space',
     'https://astounding-belekoy-ffcfef.netlify.app', 
     'http://localhost:4200' 
   ],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  // Added some standard headers browsers often send during preflight just to be safe
   allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'Accept', 'Origin', 'X-Requested-With'], 
-  credentials: true
-}));
+  credentials: true,
+  optionsSuccessStatus: 204 // Explicitly set this so we know when Express handles it
+};
+
+// 2. Apply it globally
+app.use(cors(corsOptions));
 
 
 app.use(helmet());
