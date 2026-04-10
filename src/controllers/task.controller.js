@@ -19,6 +19,8 @@ exports.updateStatus = catchAsync(async (req, res) => {
   res.status(200).json({ status: "success", data: task });
 });
 exports.rescheduleTask = catchAsync(async (req, res) => {
+  logger.info("Reschedule Task", { taskId: req.params.taskId, start_date: req.body.start_date, due_date: req.body.due_date });
+
   const task = await taskService.rescheduleTask(req.params.taskId, req.body.start_date, req.body.due_date);
   res.status(200).json({ status: "success", data: task });
 });

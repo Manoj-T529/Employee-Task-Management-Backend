@@ -9,6 +9,9 @@ require("./src/workers/notification.worker");
 
 const server = http.createServer(app);
 
+
+
+
 // INIT SOCKET.IO
 initSocket(server).then(() => {
   logger.info("✅ WebSockets initialized with Redis Adapter");
